@@ -105,85 +105,95 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str):
     # reparse and get review sidebar
     soup = BeautifulSoup(driver.page_source, 'html.parser')
     review_section = soup.find('div', class_="b89e77822a")
-    current_review_divs = review_section.find_all('div', class_="d799cd346c")
+    try:
+        current_review_divs = review_section.find_all('div', class_="d799cd346c")
+    except:
+        print("No review.")
+        return data
+    page_total_count = 1
     review_count = 0
-    for review_div in current_review_divs:
-        review = {
-            "user_name": str,
-            "user_type": str,
-            "country": str,
-            "room_name": str,
-            "num_night": int,
-            "stay_date": str,
-            "review_date": str,
-            "title": str,
-            "positive_description": str,
-            "negative_description": str,
-            "rating": float,
-        }
+    with tqdm(total=len(current_review_divs)-1, initial=1) as pbar:
+        pbar.set_description(f"Getting page {page_total_count} review 1")
+        for review_div in current_review_divs:
+            review = {
+                "user_name": str,
+                "user_type": str,
+                "country": str,
+                "room_name": str,
+                "num_night": int,
+                "stay_date": str,
+                "review_date": str,
+                "title": str,
+                "positive_description": str,
+                "negative_description": str,
+                "rating": float,
+            }
 
-        review['user_name'] = review_div.find(
-            'div', class_="a3332d346a e6208ee469").text
+            review['user_name'] = review_div.find(
+                'div', class_="a3332d346a e6208ee469").text
 
-        country_div = review_div.find('span', class_="afac1f68d9 a1ad95c055")
-        review['country'] = country_div.text if country_div else ""
+            country_div = review_div.find(
+                'span', class_="afac1f68d9 a1ad95c055")
+            review['country'] = country_div.text if country_div else ""
 
-        review['room_name'] = review_div.find(
-            'span', {"data-testid": "review-room-name"}).text
+            review['room_name'] = review_div.find(
+                'span', {"data-testid": "review-room-name"}).text
 
-        # transform "n 晚" to "n"(int)
-        num_night_div = review_div.find(
-            'span', {"data-testid": "review-num-nights"})
-        review['num_night'] = int(num_night_div.getText(
-            separator=" ", strip=True)[0])
+            # transform "n 晚" to "n"(int)
+            num_night_div = review_div.find(
+                'span', {"data-testid": "review-num-nights"})
+            review['num_night'] = int(num_night_div.getText(
+                separator=" ", strip=True)[0])
 
-        # transform "yyyy 年 MM 月" to "yyyy-MM"
-        stay_date_origin = review_div.find(
-            'span', class_="abf093bdfe d88f1120c1").text
-        stay_date_matched = re.search(
-            r'(\d{4}) 年 (\d{1,2}) 月', stay_date_origin)
-        review['stay_date'] = \
-            f"{stay_date_matched.group(1)}-" + \
-            f"{stay_date_matched.group(2).zfill(2)}"
+            # transform "yyyy 年 MM 月" to "yyyy-MM"
+            stay_date_origin = review_div.find(
+                'span', class_="abf093bdfe d88f1120c1").text
+            stay_date_matched = re.search(
+                r'(\d{4}) 年 (\d{1,2}) 月', stay_date_origin)
+            review['stay_date'] = \
+                f"{stay_date_matched.group(1)}-" + \
+                f"{stay_date_matched.group(2).zfill(2)}"
 
-        try:
-            review['user_type'] = user_type_mapping[f"{review_div.find(
-                'span', {"data-testid": "review-traveler-type"}).text}"]
-        except:
-            review['user_type'] = ""
+            try:
+                review['user_type'] = user_type_mapping[f"{review_div.find(
+                    'span', {"data-testid": "review-traveler-type"}).text}"]
+            except:
+                review['user_type'] = ""
 
-        # transform "yyyy 年 MM 月 dd 日" to "yyyy-MM-dd"
-        review_date_origin = review_div.find(
-            'span', class_="abf093bdfe f45d8e4c32").text
-        review_date_matched = re.search(
-            r'(\d{4}) 年 (\d{1,2}) 月 (\d{1,2}) 日', review_date_origin)
-        review['review_date'] = \
-            f"{review_date_matched.group(1)}" +\
-            f"-{review_date_matched.group(2).zfill(2)}" +\
-            f"-{review_date_matched.group(3).zfill(2)}"
+            # transform "yyyy 年 MM 月 dd 日" to "yyyy-MM-dd"
+            review_date_origin = review_div.find(
+                'span', class_="abf093bdfe f45d8e4c32").text
+            review_date_matched = re.search(
+                r'(\d{4}) 年 (\d{1,2}) 月 (\d{1,2}) 日', review_date_origin)
+            review['review_date'] = \
+                f"{review_date_matched.group(1)}" +\
+                f"-{review_date_matched.group(2).zfill(2)}" +\
+                f"-{review_date_matched.group(3).zfill(2)}"
 
-        review['title'] = review_div.find(
-            'h3', {"data-testid": "review-title"}).text
+            review['title'] = review_div.find(
+                'h3', {"data-testid": "review-title"}).text
 
-        try:
-            review['positive_description'] = review_div \
-                .find('div', {"data-testid": "review-positive-text"}).text
-        except:
-            review['positive_description'] = ""
+            try:
+                review['positive_description'] = review_div \
+                    .find('div', {"data-testid": "review-positive-text"}).text
+            except:
+                review['positive_description'] = ""
 
-        try:
-            review['negative_description'] = review_div \
-                .find('div', {"data-testid": "review-negative-text"}).text
-        except:
-            review['negative_description'] = ""
+            try:
+                review['negative_description'] = review_div \
+                    .find('div', {"data-testid": "review-negative-text"}).text
+            except:
+                review['negative_description'] = ""
 
-        review['rating'] = float(review_div.find(
-            'div', {"data-testid": "review-score"}).getText(separator="分", strip=True)[2])
+            review['rating'] = float(review_div.find(
+                'div', {"data-testid": "review-score"}).getText(separator="分", strip=True)[2])
 
-        data["user_review"]['reviews'].append(review)
-        review_count += 1
-        if review_count >= 10:
-            break
+            data["user_review"]['reviews'].append(review)
+            review_count += 1
+            pbar.update(1)
+            pbar.set_description(f"Getting page {page_total_count} review {review_count}")
+            if review_count >= 10:
+                break
 
     data['user_review']['count'] = review_count
     return data
@@ -235,13 +245,13 @@ def booking_web_crawler(args):
     dataset = []
 
     try:
-        with tqdm(total=len(urls_result), initial=1) as pbar:
-            for url in urls_result:
-                try:
-                    data = get_data_from_hotel_page(driver, url)
-                    dataset.append(data)
-                finally:
-                    pbar.update(1)
+        for i, url in enumerate(urls_result):
+            print(f"Crawling {i+1}/{len(urls_result)}...")
+            try:
+                data = get_data_from_hotel_page(driver, url)
+                dataset.append(data)
+            except:
+                print("Error when crawling. Skip.")
     except KeyboardInterrupt:
         print("Stopped by user. Save data at current position.")
 
