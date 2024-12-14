@@ -211,8 +211,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                     f"Getting review page {page_count} [max page reached]")
                 break
 
-            next_page_button = driver.find_element(
-                By.CLASS_NAME, "a83ed08757.c21c56c305.f38b6daa18.d691166b09.ab98298258.bb803d8689.a16ddf9c57")
+            next_page_button = driver.find_element(By.XPATH, '//button[@aria-label="下一頁"]')
             if next_page_button.is_enabled():
                 next_page_button.click()
                 page_count += 1
@@ -286,13 +285,13 @@ def booking_web_crawler(args):
 
     for i, url in enumerate(urls_result):
         print(f"Crawling item {i+1}/{len(urls_result)}...")
-        # try:
-        data = get_data_from_hotel_page(driver,
-                                        url,
-                                        args.max_page)
-        dataset.append(data)
-        # except:
-        #     print("Error when crawling. Skip.")
+        try:
+            data = get_data_from_hotel_page(driver,
+                                            url,
+                                            args.max_page)
+            dataset.append(data)
+        except:
+            print("Error when crawling. Skip.")
         if (i+1) >= args.max_item:
             print("Max item reached. Saving data at current position.")
             break
