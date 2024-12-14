@@ -198,7 +198,6 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                     'div', {"data-testid": "review-score"}).getText(separator="分", strip=True)[2])
 
                 data["user_review"]['reviews'].append(review)
-                review_total_count += 1
                 pbar.update(1)
 
             if page_count >= max_page:
@@ -214,7 +213,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                 time.sleep(3)
             else:
                 break
-
+    data["user_review"]['count_crawled'] = len(data["user_review"]['reviews'])
     return data
 
 
@@ -266,10 +265,13 @@ def booking_web_crawler(args):
 
     for i, url in enumerate(urls_result):
         print(f"Crawling item {i+1}/{len(urls_result)}...")
-        data = get_data_from_hotel_page(driver,
-                                        url,
-                                        args.max_page)
-        dataset.append(data)
+        try:
+            data = get_data_from_hotel_page(driver,
+                                            url,
+                                            args.max_page)
+            dataset.append(data)
+        except:
+            print("Error when crawling. Skip.")
         if (i+1) >= args.max_item:
             print("Max item reached. Saving data at current position.")
             break
