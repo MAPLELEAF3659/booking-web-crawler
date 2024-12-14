@@ -75,8 +75,8 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
         'span', class_="fcd9eec8fb d31eda6efc c25361c37f"))
     if data['star']['count'] > 0:
         star_text = star_div.find(
-            'span', class_="a455730030 d542f184f1").get('data-testid', None)
-        data['star']['type'] = "official" if star_text == "rating_stars" else "booking"
+            'span', class_="a455730030 d542f184f1").get("data-testid")
+        data['star']['type'] = "official" if star_text == "rating-stars" else "booking"
 
     # reviews
     average_rating_div = soup.find('div', id="js--hp-gallery-scorecard")
