@@ -75,6 +75,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str):
     try:
         data['user_review']['overall_rating']['average'] = (float)(
             average_rating_div.attrs.get("data-review-score", 0))
+        
         subrating_divs = soup.find_all('div', class_="ccb65902b2 bdc1ea4a28")
         data['user_review']['overall_rating']['staff'] = (
             float)(subrating_divs[0].text)
@@ -92,8 +93,11 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str):
             float)(subrating_divs[6].text)
     except:
         try:
-            data['user_review']['overall_rating']['average'] = re.findall(
-                r'\d+\.\d+', (soup.find('div', class_="a3b8729ab1 e6208ee469 cb2cbb3ccb").text))[0]
+            average_overall_rating_div = soup.find('div',
+                                                   class_="a3b8729ab1 e6208ee469 cb2cbb3ccb")
+            data['user_review']['overall_rating']['average'] = \
+                (float)(re.findall(r'\d+\.\d+',
+                                   (average_overall_rating_div.text))[0])
         except:
             None
 
