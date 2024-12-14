@@ -2,6 +2,8 @@ import argparse
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 import time
 import json
@@ -39,7 +41,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
             "type": None  # official, booking
         },
         "user_review": {
-            "overall_rating": { # 0.0~10.0
+            "overall_rating": {  # 0.0~10.0
                 "average": None,
                 "staff": None,
                 "facilities": None,
@@ -49,9 +51,9 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                 "location": None,
                 "wifi": None,
             },
-            "count": None, # number
-            "count_crawled": None, # number
-            "reviews": [] # Review object
+            "count": None,  # number
+            "count_crawled": None,  # number
+            "reviews": []  # Review object
         }
     }
     driver.get(url)
@@ -63,10 +65,10 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
     data['name'] = soup.find('h2', class_="pp-header__title").text
     data['address'] = soup.find(
         'div', class_="a53cbfa6de f17adf7576").contents[0].getText(strip=True)
-    
+
     slogan_div = soup.find('h3', class_="e1eebb6a1e b484330d89")
     data['slogan'] = slogan_div.getText() if slogan_div else None
-    
+
     data['description'] = soup.find('p', class_="a53cbfa6de b3efd73f69").text
 
     # stars
@@ -84,7 +86,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
         # get average rating
         data['user_review']['overall_rating']['average'] = (float)(
             average_rating_div.attrs.get("data-review-score", 0))
-        
+
         # get subrating
         subrating_divs = soup.find_all(
             'div', class_="c624d7469d f034cf5568 c69ad9b0c2 b57676889b c6198b324c a3214e5942")
@@ -138,13 +140,13 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                     "user_type": None,
                     "country": None,
                     "room_name": None,
-                    "num_night": None, # int
+                    "num_night": None,  # int
                     "stay_date": None,
                     "review_date": None,
                     "title": None,
                     "positive_description": None,
                     "negative_description": None,
-                    "rating": None, # 0.0~10.0
+                    "rating": None,  # 0.0~10.0
                 }
 
                 review['user_name'] = review_div.find(
@@ -172,8 +174,10 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                     f"{stay_date_matched.group(1)}-" + \
                     f"{stay_date_matched.group(2).zfill(2)}"
 
-                user_type_div = review_div.find('span', {"data-testid": "review-traveler-type"})
-                review['user_type'] = user_type_mapping[f"{user_type_div.text}"] if user_type_div else None
+                user_type_div = review_div.find(
+                    'span', {"data-testid": "review-traveler-type"})
+                review['user_type'] = user_type_mapping[f"{
+                    user_type_div.text}"] if user_type_div else None
 
                 # transform "yyyy 年 MM 月 dd 日" to "yyyy-MM-dd"
                 review_date_origin = review_div.find(
@@ -188,10 +192,12 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                 review['title'] = review_div.find(
                     'h3', {"data-testid": "review-title"}).text
 
-                positive_description_div =  review_div.find('div', {"data-testid": "review-positive-text"})
+                positive_description_div = review_div.find(
+                    'div', {"data-testid": "review-positive-text"})
                 review['positive_description'] = positive_description_div.text if positive_description_div else None
 
-                negative_description_div =  review_div.find('div', {"data-testid": "review-negative-text"})
+                negative_description_div = review_div.find(
+                    'div', {"data-testid": "review-negative-text"})
                 review['negative_description'] = negative_description_div.text if negative_description_div else None
 
                 review['rating'] = float(review_div.find(
@@ -207,7 +213,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
 
             next_page_button = driver.find_element(
                 By.CLASS_NAME, "a83ed08757.c21c56c305.f38b6daa18.d691166b09.ab98298258.bb803d8689.a16ddf9c57")
-            if next_page_button.is_enabled:
+            if next_page_button.is_enabled():
                 next_page_button.click()
                 page_count += 1
                 time.sleep(3)
@@ -234,6 +240,7 @@ def booking_web_crawler(args):
              "profile.managed_default_content_settings.stylesheets": 2}
     options.add_experimental_option('prefs', prefs)
     driver = webdriver.Chrome(options=options)
+    driver.maximize_window()
 
     url_query = "https://www.booking.com/searchresults.zh-tw.html"
     url_query += f"?ss={query['search']}"
@@ -244,7 +251,9 @@ def booking_web_crawler(args):
     url_query += f"&group_children={query['num_children']}"
 
     driver.get(url_query)
-    time.sleep(1)  # Wait for results to load
+    time.sleep(5)  # Wait for results to load
+
+    driver.find_element(By.CLASS_NAME,"a83ed08757.c21c56c305.f38b6daa18.d691166b09.ab98298258.f4552b6561").click()
 
     print("Scrolling for lazy load...")
     current_height = driver.execute_script(
@@ -257,6 +266,18 @@ def booking_web_crawler(args):
             break
         current_height = new_height
 
+    while True:
+        try:
+            load_more_button = driver.find_element(
+                By.CLASS_NAME, "a83ed08757.c21c56c305.bf0537ecb5.f671049264.af7297d90d.c0e0affd09")
+            driver.execute_script(
+                "arguments[0].scrollIntoView(false);", load_more_button)
+            WebDriverWait(driver, 3).until(
+                EC.element_to_be_clickable(load_more_button)).click()
+            time.sleep(3)
+        except:
+            break
+
     # Click the first of searched results
     soup = BeautifulSoup(driver.page_source, 'html.parser')
     urls_result = list(map(lambda item: item.get("href"),
@@ -265,13 +286,13 @@ def booking_web_crawler(args):
 
     for i, url in enumerate(urls_result):
         print(f"Crawling item {i+1}/{len(urls_result)}...")
-        try:
-            data = get_data_from_hotel_page(driver,
-                                            url,
-                                            args.max_page)
-            dataset.append(data)
-        except:
-            print("Error when crawling. Skip.")
+        # try:
+        data = get_data_from_hotel_page(driver,
+                                        url,
+                                        args.max_page)
+        dataset.append(data)
+        # except:
+        #     print("Error when crawling. Skip.")
         if (i+1) >= args.max_item:
             print("Max item reached. Saving data at current position.")
             break
