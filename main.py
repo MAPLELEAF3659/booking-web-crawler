@@ -7,20 +7,15 @@ import time
 import json
 from enum import Enum
 import re
+from tqdm import tqdm
 
 
-class Review(Enum):
-    name = str
-    country = str
-    room_name = str
-    type = str
-    num_night = int
-    stay_date = str
-    review_date = str
-    title = str
-    positive_description = str
-    negative_description = str
-    rating = float
+user_type_mapping = {
+    "團體": "group",
+    "家庭": "family",
+    "獨行旅客": "single",
+    "情侶": "couple"
+}
 
 
 def get_data_from_hotel_page(driver: webdriver.Chrome, url: str):
@@ -67,7 +62,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str):
         'span', class_="fcd9eec8fb d31eda6efc c25361c37f"))
     if data['star']['count'] > 0:
         star_text = star_div.find(
-            'span', class_="a455730030 d542f184f1").get('data-testid')
+            'span', class_="a455730030 d542f184f1").get('data-testid', None)
         data['star']['type'] = "official" if star_text == "rating_stars" else "booking"
 
     # reviews
@@ -75,7 +70,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str):
     try:
         data['user_review']['overall_rating']['average'] = (float)(
             average_rating_div.attrs.get("data-review-score", 0))
-        
+
         subrating_divs = soup.find_all('div', class_="ccb65902b2 bdc1ea4a28")
         data['user_review']['overall_rating']['staff'] = (
             float)(subrating_divs[0].text)
@@ -105,8 +100,92 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str):
     review_button = driver.find_element(
         By.ID, "reviews-tab-trigger")
     review_button.click()
-    review_section = soup.find('div', class_="f7c2c6294c")
+    time.sleep(1)
 
+    # reparse and get review sidebar
+    soup = BeautifulSoup(driver.page_source, 'html.parser')
+    review_section = soup.find('div', class_="b89e77822a")
+    current_review_divs = review_section.find_all('div', class_="d799cd346c")
+    review_count = 0
+    for review_div in current_review_divs:
+        review = {
+            "user_name": str,
+            "user_type": str,
+            "country": str,
+            "room_name": str,
+            "num_night": int,
+            "stay_date": str,
+            "review_date": str,
+            "title": str,
+            "positive_description": str,
+            "negative_description": str,
+            "rating": float,
+        }
+
+        review['user_name'] = review_div.find(
+            'div', class_="a3332d346a e6208ee469").text
+
+        country_div = review_div.find('span', class_="afac1f68d9 a1ad95c055")
+        review['country'] = country_div.text if country_div else ""
+
+        review['room_name'] = review_div.find(
+            'span', {"data-testid": "review-room-name"}).text
+
+        # transform "n 晚" to "n"(int)
+        num_night_div = review_div.find(
+            'span', {"data-testid": "review-num-nights"})
+        review['num_night'] = int(num_night_div.getText(
+            separator=" ", strip=True)[0])
+
+        # transform "yyyy 年 MM 月" to "yyyy-MM"
+        stay_date_origin = review_div.find(
+            'span', class_="abf093bdfe d88f1120c1").text
+        stay_date_matched = re.search(
+            r'(\d{4}) 年 (\d{1,2}) 月', stay_date_origin)
+        review['stay_date'] = \
+            f"{stay_date_matched.group(1)}-" + \
+            f"{stay_date_matched.group(2).zfill(2)}"
+
+        try:
+            review['user_type'] = user_type_mapping[f"{review_div.find(
+                'span', {"data-testid": "review-traveler-type"}).text}"]
+        except:
+            review['user_type'] = ""
+
+        # transform "yyyy 年 MM 月 dd 日" to "yyyy-MM-dd"
+        review_date_origin = review_div.find(
+            'span', class_="abf093bdfe f45d8e4c32").text
+        review_date_matched = re.search(
+            r'(\d{4}) 年 (\d{1,2}) 月 (\d{1,2}) 日', review_date_origin)
+        review['review_date'] = \
+            f"{review_date_matched.group(1)}" +\
+            f"-{review_date_matched.group(2).zfill(2)}" +\
+            f"-{review_date_matched.group(3).zfill(2)}"
+
+        review['title'] = review_div.find(
+            'h3', {"data-testid": "review-title"}).text
+
+        try:
+            review['positive_description'] = review_div \
+                .find('div', {"data-testid": "review-positive-text"}).text
+        except:
+            review['positive_description'] = ""
+
+        try:
+            review['negative_description'] = review_div \
+                .find('div', {"data-testid": "review-negative-text"}).text
+        except:
+            review['negative_description'] = ""
+
+        review['rating'] = float(review_div.find(
+            'div', {"data-testid": "review-score"}).getText(separator="分", strip=True)[2])
+
+        data["user_review"]['reviews'].append(review)
+        review_count += 1
+        if review_count >= 10:
+            break
+
+    data['user_review']['count'] = review_count
     return data
 
 
@@ -123,9 +202,9 @@ def booking_web_crawler(args):
     # Set up Selenium WebDriver
     options = Options()
     # options.add_argument('--headless=new')
-    # prefs = {"profile.managed_default_content_settings.images": 2,
-    #             "profile.managed_default_content_settings.stylesheets": 2}
-    # options.add_experimental_option('prefs', prefs)
+    prefs = {"profile.managed_default_content_settings.images": 2,
+             "profile.managed_default_content_settings.stylesheets": 2}
+    options.add_experimental_option('prefs', prefs)
     driver = webdriver.Chrome(options=options)
 
     url_query = "https://www.booking.com/searchresults.zh-tw.html"
@@ -151,21 +230,23 @@ def booking_web_crawler(args):
 
     # Click the first of searched results
     soup = BeautifulSoup(driver.page_source, 'html.parser')
-    urls = list(map(lambda item: item.get("href"),
-                    soup.find_all('a', class_="a78ca197d0")))
-    result = []
+    urls_result = list(map(lambda item: item.get("href"),
+                           soup.find_all('a', class_="a78ca197d0")))
+    dataset = []
 
     try:
-        # data = get_data_from_hotel_page(driver, urls[0])
-        # result.append(data)
-        for url in urls:
-            data = get_data_from_hotel_page(driver, url)
-            result.append(data)
+        with tqdm(total=len(urls_result), initial=1) as pbar:
+            for url in urls_result:
+                try:
+                    data = get_data_from_hotel_page(driver, url)
+                    dataset.append(data)
+                finally:
+                    pbar.update(1)
     except KeyboardInterrupt:
         print("Stopped by user. Save data at current position.")
 
     with open("result/result.json", "w", encoding='utf8') as file:
-        json.dump(result, file, ensure_ascii=False)
+        json.dump(dataset, file, ensure_ascii=False, indent=5)
 
     driver.close()
 
