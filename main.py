@@ -30,27 +30,28 @@ subrating_mapping = {
 
 def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
     data = {
-        "name": "",
-        "address": "",
-        "slogan": "",
-        "description": "",
+        "name": None,
+        "address": None,
+        "slogan": None,
+        "description": None,
         "star": {
-            "count": 0,  # 0-5
-            "type": "N/A"  # official, booking
+            "count": None,  # 0-5
+            "type": None  # official, booking
         },
         "user_review": {
-            "overall_rating": {
-                "average": 0.0,
-                "staff": 0.0,
-                "facilities": 0.0,
-                "cleanliness": 0.0,
-                "comfort": 0.0,
-                "value": 0.0,
-                "location": 0.0,
-                "wifi": 0.0,
+            "overall_rating": { # 0.0~10.0
+                "average": None,
+                "staff": None,
+                "facilities": None,
+                "cleanliness": None,
+                "comfort": None,
+                "value": None,
+                "location": None,
+                "wifi": None,
             },
-            "count": 0,
-            "reviews": list()
+            "count": None, # number
+            "count_crawled": None, # number
+            "reviews": None # Review object
         }
     }
     driver.get(url)
@@ -91,12 +92,11 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
             None
 
     subrating_divs = soup.find_all(
-            'div', class_="c624d7469d f034cf5568 c69ad9b0c2 b57676889b c6198b324c a3214e5942")
-    for subrating_div in subrating_divs[len(subrating_divs)/2:]:
-        subrating = subrating_div.getText(separator=" ") # "name 0.0"
-        print(subrating)
-        data['user_review']['overall_rating'][subrating_mapping[subrating[0]]] = float(subrating[1])
-
+        'div', class_="c624d7469d f034cf5568 c69ad9b0c2 b57676889b c6198b324c a3214e5942")
+    for subrating_div in subrating_divs[int(len(subrating_divs)/2):]:
+        subrating = subrating_div.text.split(" ")  # "name 0.0"
+        data['user_review']['overall_rating'][subrating_mapping[subrating[0]]] = float(
+            subrating[1])
 
     # get total count of reviews
     review_count_div = soup.find(
@@ -129,17 +129,17 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                 'div', class_="d799cd346c")
             for review_div in current_review_divs:
                 review = {
-                    "user_name": str,
-                    "user_type": str,
-                    "country": str,
-                    "room_name": str,
-                    "num_night": int,
-                    "stay_date": str,
-                    "review_date": str,
-                    "title": str,
-                    "positive_description": str,
-                    "negative_description": str,
-                    "rating": float,
+                    "user_name": None,
+                    "user_type": None,
+                    "country": None,
+                    "room_name": None,
+                    "num_night": None, # int
+                    "stay_date": None,
+                    "review_date": None,
+                    "title": None,
+                    "positive_description": None,
+                    "negative_description": None,
+                    "rating": None, # 0.0~10.0
                 }
 
                 review['user_name'] = review_div.find(
@@ -186,17 +186,11 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                 review['title'] = review_div.find(
                     'h3', {"data-testid": "review-title"}).text
 
-                try:
-                    review['positive_description'] = review_div \
-                        .find('div', {"data-testid": "review-positive-text"}).text
-                except:
-                    review['positive_description'] = ""
+                positive_description_div =  review_div.find('div', {"data-testid": "review-positive-text"})
+                review['positive_description'] = positive_description_div.text if positive_description_div else None
 
-                try:
-                    review['negative_description'] = review_div \
-                        .find('div', {"data-testid": "review-negative-text"}).text
-                except:
-                    review['negative_description'] = ""
+                negative_description_div =  review_div.find('div', {"data-testid": "review-negative-text"})
+                review['negative_description'] = negative_description_div.text if negative_description_div else None
 
                 review['rating'] = float(review_div.find(
                     'div', {"data-testid": "review-score"}).getText(separator="分", strip=True)[2])
