@@ -51,7 +51,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
             },
             "count": None, # number
             "count_crawled": None, # number
-            "reviews": None # Review object
+            "reviews": [] # Review object
         }
     }
     driver.get(url)
