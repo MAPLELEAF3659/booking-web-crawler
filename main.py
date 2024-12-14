@@ -63,8 +63,10 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
     data['name'] = soup.find('h2', class_="pp-header__title").text
     data['address'] = soup.find(
         'div', class_="a53cbfa6de f17adf7576").contents[0].getText(strip=True)
+    
     slogan_div = soup.find('h3', class_="e1eebb6a1e b484330d89")
-    data['slogan'] = slogan_div.getText() if slogan_div else ""
+    data['slogan'] = slogan_div.getText() if slogan_div else None
+    
     data['description'] = soup.find('p', class_="a53cbfa6de b3efd73f69").text
 
     # stars
@@ -79,10 +81,20 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
     # reviews
     average_rating_div = soup.find('div', id="js--hp-gallery-scorecard")
     try:
+        # get average rating
         data['user_review']['overall_rating']['average'] = (float)(
             average_rating_div.attrs.get("data-review-score", 0))
+        
+        # get subrating
+        subrating_divs = soup.find_all(
+            'div', class_="c624d7469d f034cf5568 c69ad9b0c2 b57676889b c6198b324c a3214e5942")
+        for subrating_div in subrating_divs[int(len(subrating_divs)/2):]:
+            subrating = subrating_div.text.split(" ")  # "name 0.0"
+            data['user_review']['overall_rating'][subrating_mapping[subrating[0]]] = float(
+                subrating[1])
     except:
         try:
+            # external average rating
             average_overall_rating_div = soup.find('div',
                                                    class_="a3b8729ab1 e6208ee469 cb2cbb3ccb")
             data['user_review']['overall_rating']['average'] = \
@@ -90,13 +102,6 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                                    (average_overall_rating_div.text))[0])
         except:
             None
-
-    subrating_divs = soup.find_all(
-        'div', class_="c624d7469d f034cf5568 c69ad9b0c2 b57676889b c6198b324c a3214e5942")
-    for subrating_div in subrating_divs[int(len(subrating_divs)/2):]:
-        subrating = subrating_div.text.split(" ")  # "name 0.0"
-        data['user_review']['overall_rating'][subrating_mapping[subrating[0]]] = float(
-            subrating[1])
 
     # get total count of reviews
     review_count_div = soup.find(
@@ -147,7 +152,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
 
                 country_div = review_div.find(
                     'span', class_="afac1f68d9 a1ad95c055")
-                review['country'] = country_div.text if country_div else ""
+                review['country'] = country_div.text if country_div else None
 
                 review['room_name'] = review_div.find(
                     'span', {"data-testid": "review-room-name"}).text
@@ -167,11 +172,8 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                     f"{stay_date_matched.group(1)}-" + \
                     f"{stay_date_matched.group(2).zfill(2)}"
 
-                try:
-                    review['user_type'] = user_type_mapping[f"{review_div.find(
-                        'span', {"data-testid": "review-traveler-type"}).text}"]
-                except:
-                    review['user_type'] = ""
+                user_type_div = review_div.find('span', {"data-testid": "review-traveler-type"})
+                review['user_type'] = user_type_mapping[f"{user_type_div.text}"] if user_type_div else None
 
                 # transform "yyyy 年 MM 月 dd 日" to "yyyy-MM-dd"
                 review_date_origin = review_div.find(
