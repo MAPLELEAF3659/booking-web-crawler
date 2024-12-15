@@ -1,8 +1,10 @@
 # Booking.com Web Crawler
 
-A web crawler that collects hotel data and reviews from [Booking.com](Booking.com) to generate the JSON dataset.
+A web crawler that collects hotel data and reviews from [Booking.com](https://booking.com) to generate the JSON dataset.
 
-**Made by MAPLELEAF3659**
+- Github repo link: [https://github.com/MAPLELEAF3659/booking-web-crawler](https://github.com/MAPLELEAF3659/booking-web-crawler)
+
+- Made by MAPLELEAF3659
 
 ## System Environment
 
