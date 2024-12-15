@@ -21,14 +21,14 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
     soup = BeautifulSoup(driver.page_source, 'html.parser')
 
     # basic infos
-    data.name = soup.find('h2', class_="pp-header__title").text
+    data.name = soup.find('h2', class_="pp-header__title").getText(strip=True)
     data.address = soup.find(
         'div', class_="a53cbfa6de f17adf7576").contents[0].getText(strip=True)
 
     slogan_div = soup.find('h3', class_="e1eebb6a1e b484330d89")
     data.slogan = slogan_div.getText() if slogan_div else None
 
-    data.description = soup.find('p', class_="a53cbfa6de b3efd73f69").text
+    data.description = soup.find('p', class_="a53cbfa6de b3efd73f69").getText(strip=True)
 
     # stars
     star_div = soup.find('span', class_="hp__hotel_ratings")
@@ -50,7 +50,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
         subrating_divs = soup.find_all(
             'div', class_="c624d7469d f034cf5568 c69ad9b0c2 b57676889b c6198b324c a3214e5942")
         for subrating_div in subrating_divs[int(len(subrating_divs)/2):]:
-            subrating = subrating_div.text.split(" ")  # "name 0.0"
+            subrating = subrating_div.getText(strip=True).split(" ")  # "name 0.0"
             data.user_review.overall_rating.update_subrating_by_keyword(subrating[0],
                                                                         float(subrating[1]))
     except:
@@ -96,14 +96,14 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                     review = Review()
 
                     review.user_name = review_div.find(
-                        'div', class_="a3332d346a e6208ee469").text
+                        'div', class_="a3332d346a e6208ee469").getText(strip=True)
 
                     country_div = review_div.find(
                         'span', class_="afac1f68d9 a1ad95c055")
-                    review.country = country_div.text if country_div else None
+                    review.country = country_div.getText(strip=True) if country_div else None
 
                     review.room_name = review_div.find(
-                        'span', {"data-testid": "review-room-name"}).text
+                        'span', {"data-testid": "review-room-name"}).getText(strip=True)
 
                     # transform "n 晚" to "n"(int)
                     num_stay_night_div = review_div.find(
@@ -140,17 +140,18 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
 
                     positive_description_div = review_div.find(
                         'div', {"data-testid": "review-positive-text"})
-                    review.positive_description = positive_description_div.text if positive_description_div else None
+                    review.positive_description = positive_description_div.getText(strip=True) if positive_description_div else None
 
                     negative_description_div = review_div.find(
                         'div', {"data-testid": "review-negative-text"})
-                    review.negative_description = negative_description_div.text if negative_description_div else None
+                    review.negative_description = negative_description_div.getText(strip=True) if negative_description_div else None
 
                     review.rating = float(review_div.find(
-                        'div', {"data-testid": "review-score"}).getText(separator="分", strip=True)[2])
+                        'div', {"data-testid": "review-score"}).getText(strip=True).split('分')[-1])
 
                     data.user_review.reviews.append(review)
-                    pbar.update(1)
+
+                pbar.update(len(current_review_divs))
 
                 if page_count >= max_page:  # page limiter
                     pbar.set_description(
@@ -284,17 +285,17 @@ def booking_web_crawler(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--search",
+    parser.add_argument("-s", "--search", type=str,
                         help="Search keywords.", required=True)
-    parser.add_argument("-ci", "--check_in",
+    parser.add_argument("-ci", "--check_in", type=str,
                         help="Check-in date. Format: yyyy-MM-dd")
-    parser.add_argument("-co", "--check_out",
+    parser.add_argument("-co", "--check_out", type=str,
                         help="Check-out date. Format: yyyy-MM-dd")
-    parser.add_argument("-na", "--num_adults",
+    parser.add_argument("-na", "--num_adults", type=int,
                         help="Number of adults.", default=2)
-    parser.add_argument("-nc", "--num_children",
+    parser.add_argument("-nc", "--num_children", type=int,
                         help="Number of children.", default=0)
-    parser.add_argument("-nr", "--num_rooms",
+    parser.add_argument("-nr", "--num_rooms", type=int,
                         help="Number of rooms.", default=1)
     parser.add_argument("-mp", "--max_page", type=int,
                         help="Number of max review page.", default=999)
