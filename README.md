@@ -87,14 +87,15 @@ The output of result data will be an array of [BookingData](#bookingdata) object
             },
             "user_review": {
                 "overall_rating": { -> OverallRating
-                        "average": 8.2,
-                        "staff": 9.1,
-                        "facilities": 8.2,
-                        "cleanliness": 8.4,
-                        "comfort": 8.5,
-                        "value": 8.0,
-                        "location": 9.4,
-                        "wifi": 9.0
+                    "type": "booking",
+                    "average": 8.2,
+                    "staff": 9.1,
+                    "facilities": 8.2,
+                    "cleanliness": 8.4,
+                    "comfort": 8.5,
+                    "value": 8.0,
+                    "location": 9.4,
+                    "wifi": 9.0
                 },
                 "count": 2344,
                 "count_crawled": 500,
@@ -166,9 +167,11 @@ Fields:
 ### OverallRating
 
 The overall_rating object contains aggregated scores for various attributes of the hotel.  
-\*_All value ranged in 0.0~10.0._
+\*_All value expects `type` are ranged in 0.0~10.0._
 
 Fields:
+
+- `type`: (Optional, String) - Rating type. (options: "booking", "external")
 
 - `average`: (Optional, Float) - Average overall rating.
 

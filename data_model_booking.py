@@ -36,7 +36,7 @@ class Star:
 class OverallRating:
     def __init__(
         self,
-        rating_type: Optional[str] = None,
+        type: Optional[str] = None,
         average: Optional[float] = None,
         staff: Optional[float] = None,
         facilities: Optional[float] = None,
@@ -46,7 +46,7 @@ class OverallRating:
         location: Optional[float] = None,
         wifi: Optional[float] = None
     ):
-        self.rating_type = rating_type  # "booking", "external", None
+        self.type = type  # "booking", "external", None
         self.average = average  # 0.0~10.0
         self.staff = staff
         self.facilities = facilities
@@ -75,7 +75,7 @@ class OverallRating:
 
     def to_dict(self):
         return {
-            "rating_type": self.rating_type,
+            "type": self.type,
             "average": self.average,
             "staff": self.staff,
             "facilities": self.facilities,

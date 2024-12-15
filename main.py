@@ -46,7 +46,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
     average_rating_div = soup.find('div', id="js--hp-gallery-scorecard")
     if not average_rating_div:
         # if there is no review then skip
-        data.user_review.overall_rating.rating_type = None
+        data.user_review.overall_rating.type = None
         print("No review.")
         return data
 
@@ -54,7 +54,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
         # get average rating
         data.user_review.overall_rating.average = (float)(
             average_rating_div.attrs.get("data-review-score", 0))
-        data.user_review.overall_rating.rating_type = "booking"
+        data.user_review.overall_rating.type = "booking"
     except:
         # get external average rating
         external_average_rating_div = average_rating_div.find('div',
@@ -62,7 +62,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
         external_average_rating_match = re.search(r'\d+(\.\d+)?$',
                                                   external_average_rating_div.text)
         data.user_review.overall_rating.average = float(external_average_rating_match.group())
-        data.user_review.overall_rating.rating_type = "external"
+        data.user_review.overall_rating.type = "external"
         print("Review data is from external.")
         return data
 
