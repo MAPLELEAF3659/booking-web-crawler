@@ -22,6 +22,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
 
     # basic infos
     data.name = soup.find('h2', class_="pp-header__title").getText(strip=True)
+    print(data.name)
     data.address = soup.find(
         'div', class_="a53cbfa6de f17adf7576").contents[0].getText(strip=True)
 
@@ -42,9 +43,8 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
 
     # ratings
     # get overall average rating
-    try:
-        average_rating_div = soup.find('div', id="js--hp-gallery-scorecard")
-    except:
+    average_rating_div = soup.find('div', id="js--hp-gallery-scorecard")
+    if not average_rating_div:
         # if there is no review then skip
         data.user_review.overall_rating.rating_type = None
         print("No review.")
@@ -57,22 +57,23 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
         data.user_review.overall_rating.rating_type = "booking"
     except:
         # get external average rating
-        external_average_rating_div = soup.find('div',
-                                                class_="a3b8729ab1 e6208ee469 cb2cbb3ccb")
-        data.user_review.overall_rating.average = float(re.findall(r'\d+\.\d+',
-                                                                   (external_average_rating_div.text))[0])
+        external_average_rating_div = average_rating_div.find('div',
+                                                              class_="a3b8729ab1 e6208ee469 cb2cbb3ccb")
+        external_average_rating_match = re.search(r'\d+(\.\d+)?$',
+                                                  external_average_rating_div.text)
+        data.user_review.overall_rating.average = float(external_average_rating_match.group())
         data.user_review.overall_rating.rating_type = "external"
-        print("Review data not in booking.com(average rating was external).")
+        print("Review data is from external.")
         return data
-    
+
     # get subrating
     subrating_divs = soup.find_all(
         'div', class_="c624d7469d f034cf5568 c69ad9b0c2 b57676889b c6198b324c a3214e5942")
     for subrating_div in subrating_divs[int(len(subrating_divs)/2):]:
         key = subrating_div.find('span',
-                                class_="be887614c2").getText(strip=True)
+                                 class_="be887614c2").getText(strip=True)
         value = float(subrating_div.find('div',
-                                        class_="ccb65902b2 bdc1ea4a28").getText(strip=True))
+                                         class_="ccb65902b2 bdc1ea4a28").getText(strip=True))
         data.user_review.overall_rating.update_subrating_by_keyword(key,
                                                                     value)
 
@@ -263,15 +264,18 @@ def booking_web_crawler(args):
     # start web-crawling for every url
     dataset = list()
     for i, url in enumerate(urls_result):
-        print(f"Web-crawling item {i+1}/{len(urls_result)}...")
+        print(f"Web-crawling item {i+1}/{len(urls_result)}...", end='')
 
-        # try:
-        data = get_data_from_hotel_page(driver,
-                                        url,
-                                        args.max_page)
-        dataset.append(data.to_dict())
-        # except Exception as e:
-        #     print(f"Error when web-crawling. Skip. Message:\n{e}")
+        try:
+            data = get_data_from_hotel_page(driver,
+                                            url,
+                                            args.max_page)
+            dataset.append(data.to_dict())
+        except KeyboardInterrupt:
+            print("\nStop by user. Saving data at current position.")
+            break
+        except Exception as e:
+            print(f"\nError when web-crawling. Skip. Message:\n{e}")
 
         if (i+1) >= args.max_item:  # item count limiter
             print("Max item reached. Saving data at current position.")
@@ -288,8 +292,6 @@ def booking_web_crawler(args):
     filename += f"_child{query['num_children']}"
     with open(f"result/{filename}.json", "w", encoding='utf8') as file:
         json.dump(dataset, file, ensure_ascii=False, indent=5)
-
-    driver.close()
 
     end_time = time.time()
     print(f"Total execution time: {timedelta(seconds=end_time-start_time)}. " +
