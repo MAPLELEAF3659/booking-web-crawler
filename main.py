@@ -92,12 +92,12 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
 
     # reparse and get review sidebar
     try:
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        review_section = soup.find('div', class_="b89e77822a")
         page_count = 1
         with tqdm(total=data.user_review.count) as pbar:
             while True:
                 pbar.set_description(f"Getting review page {page_count}")
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
+                review_section = soup.find('div', class_="b89e77822a")
                 current_review_divs = review_section.find_all(
                     'div', class_="d799cd346c")
                 for review_div in current_review_divs:
@@ -218,7 +218,7 @@ def booking_web_crawler(args):
     url_query += f"&group_adults={query['num_adults']}"
     url_query += f"&no_room={query['num_rooms']}"
     url_query += f"&group_children={query['num_children']}"
-    print(f"Query URL: {url_query}")
+    print(f"Query URL: '{url_query}'")
     print(f"Max web-crawling items: {args.max_item}. " +
           f"Max review page: {args.max_page}")
 
