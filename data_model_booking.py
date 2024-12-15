@@ -20,7 +20,9 @@ subrating_mapping = {
 
 
 class Star:
-    def __init__(self, count: Optional[int] = None, star_type: Optional[str] = None):
+    def __init__(self,
+                 count: Optional[int] = None,
+                 star_type: Optional[str] = None):
         self.count = count  # 0-5
         self.type = star_type  # official, booking
 
@@ -34,6 +36,7 @@ class Star:
 class OverallRating:
     def __init__(
         self,
+        rating_type: Optional[str] = None,
         average: Optional[float] = None,
         staff: Optional[float] = None,
         facilities: Optional[float] = None,
@@ -43,6 +46,7 @@ class OverallRating:
         location: Optional[float] = None,
         wifi: Optional[float] = None
     ):
+        self.rating_type = rating_type  # "booking", "external", None
         self.average = average  # 0.0~10.0
         self.staff = staff
         self.facilities = facilities
@@ -71,6 +75,7 @@ class OverallRating:
 
     def to_dict(self):
         return {
+            "rating_type": self.rating_type,
             "average": self.average,
             "staff": self.staff,
             "facilities": self.facilities,
@@ -129,13 +134,13 @@ class UserReview:
     def __init__(
         self,
         overall_rating: Optional[OverallRating] = None,
-        count: Optional[int] = None,
-        count_crawled: Optional[int] = None,
-        reviews: Optional[List[Review]] = None
+        count: Optional[int] = 0,
+        count_crawled: Optional[int] = 0,
+        reviews: Optional[list[Review]] = None
     ):
         self.overall_rating = overall_rating or OverallRating()
-        self.count = count
-        self.count_crawled = count_crawled
+        self.count = count  # number
+        self.count_crawled = count_crawled  # number
         self.reviews = reviews or []  # Review objects
 
     def to_dict(self):

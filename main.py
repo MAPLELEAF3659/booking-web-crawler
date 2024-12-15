@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import json
 import re
 from tqdm import tqdm
-from data_model_booking import BookingData, Review, subrating_mapping, user_type_mapping
+from data_model_booking import BookingData, Review, user_type_mapping
 
 
 def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
@@ -40,43 +40,48 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
             'span', class_="a455730030 d542f184f1").get("data-testid")
         data.star.type = "official" if star_text == "rating-stars" else "booking"
 
-    # reviews
-    average_rating_div = soup.find('div', id="js--hp-gallery-scorecard")
+    # ratings
+    # get overall average rating
+    try:
+        average_rating_div = soup.find('div', id="js--hp-gallery-scorecard")
+    except:
+        # if there is no review then skip
+        data.user_review.overall_rating.rating_type = None
+        print("No review.")
+        return data
+
     try:
         # get average rating
         data.user_review.overall_rating.average = (float)(
             average_rating_div.attrs.get("data-review-score", 0))
-
-        # get subrating
-        subrating_divs = soup.find_all(
-            'div', class_="c624d7469d f034cf5568 c69ad9b0c2 b57676889b c6198b324c a3214e5942")
-        for subrating_div in subrating_divs[int(len(subrating_divs)/2):]:
-            subrating = subrating_div.getText(
-                strip=True).split(" ")  # "name 0.0"
-            data.user_review.overall_rating.update_subrating_by_keyword(subrating[0],
-                                                                        float(subrating[1]))
+        data.user_review.overall_rating.rating_type = "booking"
     except:
-        try:
-            # external average rating
-            average_overall_rating_div = soup.find('div',
-                                                   class_="a3b8729ab1 e6208ee469 cb2cbb3ccb")
-            data.user_review.overall_rating.average = float(re.findall(r'\d+\.\d+',
-                                                                       (average_overall_rating_div.text))[0])
-        except:
-            None
+        # get external average rating
+        external_average_rating_div = soup.find('div',
+                                                class_="a3b8729ab1 e6208ee469 cb2cbb3ccb")
+        data.user_review.overall_rating.average = float(re.findall(r'\d+\.\d+',
+                                                                   (external_average_rating_div.text))[0])
+        data.user_review.overall_rating.rating_type = "external"
+        print("Review data not in booking.com(average rating was external).")
+        return data
+    
+    # get subrating
+    subrating_divs = soup.find_all(
+        'div', class_="c624d7469d f034cf5568 c69ad9b0c2 b57676889b c6198b324c a3214e5942")
+    for subrating_div in subrating_divs[int(len(subrating_divs)/2):]:
+        key = subrating_div.find('span',
+                                class_="be887614c2").getText(strip=True)
+        value = float(subrating_div.find('div',
+                                        class_="ccb65902b2 bdc1ea4a28").getText(strip=True))
+        data.user_review.overall_rating.update_subrating_by_keyword(key,
+                                                                    value)
 
     # get total count of reviews
     review_count_div = soup.find(
         'div', class_="abf093bdfe f45d8e4c32 d935416c47")
-    try:
-        review_count_origin = review_count_div.text
-        data.user_review.count = int(
-            re.search(r'(\d[\d,]*)', review_count_origin).group(1).replace(',', ''))
-    except:
-        # if there is no review then skip
-        data.user_review.count = 0
-        print("No review.")
-        return data
+    review_count_origin = review_count_div.text
+    data.user_review.count = int(
+        re.search(r'(\d[\d,]*)', review_count_origin).group(1).replace(',', ''))
 
     # click review button
     review_button = driver.find_element(
@@ -161,7 +166,7 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                 if page_count >= max_page:  # page limiter
                     pbar.set_description(
                         f"Getting review page {page_count} [max page reached]")
-                    break
+                    return data
 
                 # click and change to next page
                 try:  # check if next button exist
@@ -172,13 +177,13 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                         page_count += 1
                         time.sleep(3)
                     else:
-                        break
+                        return data
                 except:
-                    break
+                    return data
     except Exception as e:
         print(f"Error when getting reviews. Message:\n{e}")
 
-    return data.to_dict()
+    return data
 
 
 def booking_web_crawler(args):
@@ -220,8 +225,11 @@ def booking_web_crawler(args):
     time.sleep(5)  # Wait for results to load
 
     # close first visit dialog
-    driver.find_element(By.CLASS_NAME,
-                        "a83ed08757.c21c56c305.f38b6daa18.d691166b09.ab98298258.f4552b6561").click()
+    try:
+        driver.find_element(By.CLASS_NAME,
+                            "a83ed08757.c21c56c305.f38b6daa18.d691166b09.ab98298258.f4552b6561").click()
+    except:
+        None
 
     # scroll for lazy load
     print("Scrolling for lazy load...")
@@ -253,17 +261,17 @@ def booking_web_crawler(args):
                            soup.find_all('a', class_="a78ca197d0")))
 
     # start web-crawling for every url
-    dataset = []
+    dataset = list()
     for i, url in enumerate(urls_result):
         print(f"Web-crawling item {i+1}/{len(urls_result)}...")
 
-        try:
-            data = get_data_from_hotel_page(driver,
-                                            url,
-                                            args.max_page)
-            dataset.append(data)
-        except Exception as e:
-            print(f"Error when web-crawling. Skip. Message:\n{e}")
+        # try:
+        data = get_data_from_hotel_page(driver,
+                                        url,
+                                        args.max_page)
+        dataset.append(data.to_dict())
+        # except Exception as e:
+        #     print(f"Error when web-crawling. Skip. Message:\n{e}")
 
         if (i+1) >= args.max_item:  # item count limiter
             print("Max item reached. Saving data at current position.")
@@ -310,19 +318,24 @@ if __name__ == "__main__":
 
     # check-in and check-out date checker
     if args.check_in or args.check_out:
-        if not(args.check_in and args.check_out):
-            raise ValueError("Check-in and check-out date must be used at same time.")
-        
+        if not (args.check_in and args.check_out):
+            raise ValueError(
+                "Check-in and check-out date must be used at same time.")
+
         current_date = datetime.now().date()
         try:
             check_in_date = datetime.strptime(args.check_in, "%Y-%m-%d").date()
-            check_out_date = datetime.strptime(args.check_out, "%Y-%m-%d").date()
+            check_out_date = datetime.strptime(
+                args.check_out, "%Y-%m-%d").date()
         except:
-            raise ValueError("Invalid date format for check-in or check-out date. should be \"yyyy-MM-dd\"")
-        
+            raise ValueError(
+                "Invalid date format for check-in or check-out date. should be \"yyyy-MM-dd\"")
+
         if check_in_date < current_date or check_out_date < current_date:
-            raise ValueError("Check-in or check-out date cannot be an past date.")
+            raise ValueError(
+                "Check-in or check-out date cannot be an past date.")
         if check_in_date >= check_out_date:
-            raise ValueError("Check-out date must greater then check-in date and should not in same date.")
+            raise ValueError(
+                "Check-out date must greater then check-in date and should not in same date.")
 
     booking_web_crawler(args)
