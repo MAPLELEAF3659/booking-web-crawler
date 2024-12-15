@@ -16,7 +16,7 @@ from data_model_booking import BookingData, Review, user_type_mapping
 def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
     data = BookingData()
     driver.get(url)
-    time.sleep(3)
+    time.sleep(5)
 
     soup = BeautifulSoup(driver.page_source, 'html.parser')
 
@@ -61,7 +61,8 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                                                               class_="a3b8729ab1 e6208ee469 cb2cbb3ccb")
         external_average_rating_match = re.search(r'\d+(\.\d+)?$',
                                                   external_average_rating_div.text)
-        data.user_review.overall_rating.average = float(external_average_rating_match.group())
+        data.user_review.overall_rating.average = float(
+            external_average_rating_match.group())
         data.user_review.overall_rating.type = "external"
         print("Review data is from external.")
         return data
@@ -91,16 +92,16 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
     time.sleep(3)
 
     # reparse and get review sidebar
-    try:
-        page_count = 1
-        with tqdm(total=data.user_review.count) as pbar:
-            while True:
-                pbar.set_description(f"Getting review page {page_count}")
-                soup = BeautifulSoup(driver.page_source, 'html.parser')
-                review_section = soup.find('div', class_="b89e77822a")
-                current_review_divs = review_section.find_all(
-                    'div', class_="d799cd346c")
-                for review_div in current_review_divs:
+    page_count = 1
+    with tqdm(total=data.user_review.count) as pbar:
+        while True:
+            pbar.set_description(f"Getting review page {page_count}")
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
+            review_section = soup.find('div', class_="b89e77822a")
+            current_review_divs = review_section.find_all(
+                'div', class_="d799cd346c")
+            for review_div in current_review_divs:
+                try:
                     review = Review()
 
                     review.user_name = review_div.find(
@@ -131,8 +132,9 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
 
                     user_type_div = review_div.find(
                         'span', {"data-testid": "review-traveler-type"})
-                    review.user_type = user_type_mapping[f"{
-                        user_type_div.text}"] if user_type_div else None
+                    review.user_type = \
+                        user_type_mapping[f"{user_type_div.text}"] \
+                        if user_type_div else None
 
                     # transform "yyyy 年 MM 月 dd 日" to "yyyy-MM-dd"
                     review_date_origin = review_div.find(
@@ -144,8 +146,9 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                         f"-{review_date_matched.group(2).zfill(2)}" +\
                         f"-{review_date_matched.group(3).zfill(2)}"
 
-                    review.title = review_div.find(
-                        'h3', {"data-testid": "review-title"}).text
+                    title_div = review_div.find(
+                        'h3', {"data-testid": "review-title"})
+                    review.title = title_div.text if title_div else None
 
                     positive_description_div = review_div.find(
                         'div', {"data-testid": "review-positive-text"})
@@ -157,32 +160,35 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
                     review.negative_description = negative_description_div.getText(
                         strip=True) if negative_description_div else None
 
-                    review.rating = float(review_div.find(
-                        'div', {"data-testid": "review-score"}).getText(strip=True).split('分')[-1])
+                    rating_div = review_div.find(
+                        'div', {"data-testid": "review-score"})
+                    review.rating = \
+                        float(rating_div.getText(strip=True).split('分')[-1])\
+                        if rating_div else None
 
                     data.user_review.reviews.append(review)
+                except Exception as e:
+                    print(f"Error when getting an review. Skip and continue. Message:\n{e}")
+                    continue
+            pbar.update(len(current_review_divs))
 
-                pbar.update(len(current_review_divs))
+            if page_count >= max_page:  # page limiter
+                pbar.set_description(
+                    f"Getting review page {page_count} [max page reached]")
+                return data
 
-                if page_count >= max_page:  # page limiter
-                    pbar.set_description(
-                        f"Getting review page {page_count} [max page reached]")
+            # click and change to next page
+            try:  # check if next button exist
+                next_page_button = driver.find_element(
+                    By.XPATH, '//button[@aria-label="下一頁"]')
+                if next_page_button.is_enabled():  # click if clickable(no disable attr)
+                    next_page_button.click()
+                    page_count += 1
+                    time.sleep(2)
+                else:
                     return data
-
-                # click and change to next page
-                try:  # check if next button exist
-                    next_page_button = driver.find_element(
-                        By.XPATH, '//button[@aria-label="下一頁"]')
-                    if next_page_button.is_enabled():  # click if clickable(no disable attr)
-                        next_page_button.click()
-                        page_count += 1
-                        time.sleep(3)
-                    else:
-                        return data
-                except:
-                    return data
-    except Exception as e:
-        print(f"Error when getting reviews. Message:\n{e}")
+            except:
+                return data
 
     return data
 
