@@ -54,16 +54,16 @@ A web crawler that collects hotel data and reviews from [Booking.com](https://bo
 
    - Command arguments
 
-     | short name | full name        | description                        | type | default value | required? |
-     | ---------- | ---------------- | ---------------------------------- | ---- | ------------- | --------- |
-     | `-s`       | `--search`       | keywords of search.                | str  | None          | **Y**     |
-     | `-ci`      | `--check_in`     | check-in date. format: yyyy-MM-dd  | str  | None          | N         |
-     | `-co`      | `--check_out`    | check-out date. format: yyyy-MM-dd | str  | None          | N         |
-     | `-na`      | `--num_adults`   | number of adults.                  | int  | 2             | N         |
-     | `-nc`      | `--num_children` | number of children.                | int  | 0             | N         |
-     | `-nr`      | `--num_rooms`    | number of rooms.                   | int  | 1             | N         |
-     | `-mi`      | `--max_item`     | max item for web-crawling          | int  | 999           | N         |
-     | `-mp`      | `--max_page`     | max review page in an item         | int  | 999           | N         |
+     | short name | full name        | description                          | type | default value | required?                    |
+     | ---------- | ---------------- | ------------------------------------ | ---- | ------------- | ----------------------       |
+     | `-s`       | `--search`       | keywords of search.                  | str  | None          | **Y**                        |
+     | `-ci`      | `--check_in`     | check-in date. format: `yyyy-MM-dd`  | str  | None          | **Y** if `check_out` existed |
+     | `-co`      | `--check_out`    | check-out date. format: `yyyy-MM-dd` | str  | None          | **Y** if `check_in` existed  |
+     | `-na`      | `--num_adults`   | number of adults.                    | int  | 2             | N                            |
+     | `-nc`      | `--num_children` | number of children.                  | int  | 0             | N                            |
+     | `-nr`      | `--num_rooms`    | number of rooms.                     | int  | 1             | N                            |
+     | `-mi`      | `--max_item`     | max item for web-crawling            | int  | 999           | N                            |
+     | `-mp`      | `--max_page`     | max review page in an item           | int  | 999           | N                            |
 
 1. The results will save in `.json` at `./result/`
 
@@ -123,7 +123,7 @@ The output of result data will be an array of [BookingData](#bookingdata) object
 
 ### BookingData
 
-The BookingData object represents a hotel's core information, rating summary, and reviews. It has the following fields:
+The BookingData object represents a hotel's core information, rating summary, and reviews.
 
 Fields:
 

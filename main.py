@@ -6,7 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
 import re
 from tqdm import tqdm
@@ -28,7 +28,8 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
     slogan_div = soup.find('h3', class_="e1eebb6a1e b484330d89")
     data.slogan = slogan_div.getText() if slogan_div else None
 
-    data.description = soup.find('p', class_="a53cbfa6de b3efd73f69").getText(strip=True)
+    data.description = soup.find(
+        'p', class_="a53cbfa6de b3efd73f69").getText(strip=True)
 
     # stars
     star_div = soup.find('span', class_="hp__hotel_ratings")
@@ -50,7 +51,8 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
         subrating_divs = soup.find_all(
             'div', class_="c624d7469d f034cf5568 c69ad9b0c2 b57676889b c6198b324c a3214e5942")
         for subrating_div in subrating_divs[int(len(subrating_divs)/2):]:
-            subrating = subrating_div.getText(strip=True).split(" ")  # "name 0.0"
+            subrating = subrating_div.getText(
+                strip=True).split(" ")  # "name 0.0"
             data.user_review.overall_rating.update_subrating_by_keyword(subrating[0],
                                                                         float(subrating[1]))
     except:
@@ -100,7 +102,8 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
 
                     country_div = review_div.find(
                         'span', class_="afac1f68d9 a1ad95c055")
-                    review.country = country_div.getText(strip=True) if country_div else None
+                    review.country = country_div.getText(
+                        strip=True) if country_div else None
 
                     review.room_name = review_div.find(
                         'span', {"data-testid": "review-room-name"}).getText(strip=True)
@@ -140,11 +143,13 @@ def get_data_from_hotel_page(driver: webdriver.Chrome, url: str, max_page: int):
 
                     positive_description_div = review_div.find(
                         'div', {"data-testid": "review-positive-text"})
-                    review.positive_description = positive_description_div.getText(strip=True) if positive_description_div else None
+                    review.positive_description = positive_description_div.getText(
+                        strip=True) if positive_description_div else None
 
                     negative_description_div = review_div.find(
                         'div', {"data-testid": "review-negative-text"})
-                    review.negative_description = negative_description_div.getText(strip=True) if negative_description_div else None
+                    review.negative_description = negative_description_div.getText(
+                        strip=True) if negative_description_div else None
 
                     review.rating = float(review_div.find(
                         'div', {"data-testid": "review-score"}).getText(strip=True).split('分')[-1])
@@ -302,5 +307,22 @@ if __name__ == "__main__":
     parser.add_argument("-mi", "--max_item", type=int,
                         help="Number of max result items.", default=999)
     args = parser.parse_args()
+
+    # check-in and check-out date checker
+    if args.check_in or args.check_out:
+        if not(args.check_in and args.check_out):
+            raise ValueError("Check-in and check-out date must be used at same time.")
+        
+        current_date = datetime.now().date()
+        try:
+            check_in_date = datetime.strptime(args.check_in, "%Y-%m-%d").date()
+            check_out_date = datetime.strptime(args.check_out, "%Y-%m-%d").date()
+        except:
+            raise ValueError("Invalid date format for check-in or check-out date. should be \"yyyy-MM-dd\"")
+        
+        if check_in_date < current_date or check_out_date < current_date:
+            raise ValueError("Check-in or check-out date cannot be an past date.")
+        if check_in_date >= check_out_date:
+            raise ValueError("Check-out date must greater then check-in date and should not in same date.")
 
     booking_web_crawler(args)
